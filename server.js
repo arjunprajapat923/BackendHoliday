@@ -8,7 +8,7 @@ const userRoutes = require("./routes/userRoutes");
 const cors = require('cors');
 const app = express();
 
-app.use(cors({ origin: 'frontend-holiiday.vercel.app', credentials: true }));
+app.use(cors({ origin: 'https://frontend-holiiday.vercel.app', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
