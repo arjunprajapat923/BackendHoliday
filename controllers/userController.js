@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const QRCode = require("qrcode");
 const admin = require("../config/firebase");
 
-//contorllers create and login 
+
 
 
 exports.createUser = async (req, res) => {
@@ -104,7 +104,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserByUID = async (req, res) => {
   try {
     const { uid } = req.params;
-    const user = await User.findOne({ firebaseUID: uid }, '-password'); // Exclude password
+    const user = await User.findOne({ firebaseUID: uid }, '-password'); 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
