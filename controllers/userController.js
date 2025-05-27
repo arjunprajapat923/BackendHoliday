@@ -74,27 +74,56 @@ exports.loginUser = async (req, res) => {
 
 
 exports.getAllUsers = async (req, res) => {
-    try {
-      const users = await User.find().select("-password"); 
-      res.status(200).json({ users });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Server error" });
-    }
+  try {
+    const users = await User.find({}, '-password');
+    // Generate a QR code for each user with their info
+    const usersWithQR = await Promise.all(users.map(async (user) => {
+      const qrData = JSON.stringify({
+        name: user.name,
+        email: user.email,
+        image: user.image || '',
+      });
+      let qrCode = user.qrCode;
+      try {
+        qrCode = await QRCode.toDataURL(qrData);
+      } catch (err) {
+        qrCode = '';
+      }
+      return {
+        ...user.toObject(),
+        qrCode,
+      };
+    }));
+    res.status(200).json({ users: usersWithQR });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
-  
 
-
+exports.getUserByUID = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ firebaseUID: uid }, '-password'); // Exclude password
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Error fetching user by UID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 exports.firebaseLogin = async (req, res) => {
   const idToken = req.body.token;
+  console.log(idToken)
 
   if (!idToken) {
     return res.status(400).json({ message: "No token provided" });
   }
 
   try {
-    // Verify token with Firebase Admin SDK
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture } = decodedToken;
 
@@ -102,21 +131,19 @@ exports.firebaseLogin = async (req, res) => {
       return res.status(400).json({ message: "No email in token" });
     }
 
-    // Find user by firebaseUID
     let user = await User.findOne({ firebaseUID: uid });
 
     if (!user) {
-      // If not found, create new user in MongoDB
       user = new User({
         firebaseUID: uid,
         name: name || "No Name",
         email,
         image: picture || "",
-        password: "", // empty because Firebase handles auth
+        password: "", 
       });
       await user.save();
     } else {
-      // Optionally update info if changed
+    
       let updateNeeded = false;
       if (user.email !== email) {
         user.email = email;
@@ -133,7 +160,7 @@ exports.firebaseLogin = async (req, res) => {
       if (updateNeeded) await user.save();
     }
 
-    // Send back user info
+
     return res.status(200).json({
       message: "Firebase login successful",
       user: {
